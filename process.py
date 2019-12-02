@@ -13,15 +13,16 @@ def main():
 
     points = np.loadtxt('unclassified_cloud.txt', usecols=range(4))
     offset = np.loadtxt('offset.txt', usecols=range(3))
-    pmatrices = np.genfromtxt('pmatrix.txt', usecols=range(13), dtype=None)
-    print(offset)
+    p_matrices = np.loadtxt('pmatrix.txt', usecols=range(1,13))
+    filenames = np.genfromtxt('pmatrix.txt', usecols=range(1), dtype=str)
 
-    x_offset = offset[0][0] 
-    y_offset = offset[0][1]
-    z_offset = offset[0][2]
+    x_offset = offset[0] 
+    y_offset = offset[1]
+    z_offset = offset[2]
 
     for point in points:
-
+        print('Now processing point:')
+        print(point)
         pixel_classes = np.array([])
 
         x = point[0]
@@ -34,10 +35,13 @@ def main():
 
         prime_matrix = np.matrix([[x_prime], [y_prime], [z_prime], [1]])
 
-        for row in pmatrices:
-
-            filename = row[0]
-            p_matrix = np.matrix(row[1:13])
+        for i in range(p_matrices.shape[0]):
+            filename = filenames[i]
+            print('Now processing filename:')
+            print(filename)
+            p_matrix = np.matrix(p_matrices[i])
+            print('Now processing pmatrix:')
+            print(p_matrix)
             p_matrix = np.reshape(p_matrix, (-1, 4))
             dot_matrix = np.matmul(p_matrix, prime_matrix)
             dot_matrix = np.reshape(dot_matrix, (-1, 3))
@@ -57,6 +61,8 @@ def main():
 
             pixel_class = segmented_image.astype(int)[np.floor(u / scale_factor)][np.floor(v / scale_factor)]
             pixel_classes = np.append(pixel_classes, pixel_class)
+            print('Pixel classes now look like:')
+            print(pixel_classes)
 
         try:
             point[3] = stats.mode(pixel_classes)[0][0]
