@@ -10,6 +10,7 @@ def main():
 
     points = np.loadtxt('unclassified_cloud.txt', usecols=range(3))
     classes = np.loadtxt('unclassified_cloud.txt', usecols=range(3,4))
+    rgb = np.loadtxt('unclassified_cloud.txt', usecols=range(4,7))
     offset = np.loadtxt('offset.txt', usecols=range(3))
     p_matrices = np.loadtxt('pmatrix.txt', usecols=range(1,13))
     filenames = np.genfromtxt('pmatrix.txt', usecols=range(1), dtype=str)
@@ -43,7 +44,12 @@ def main():
             print('True')
             classes[i] = segmented_image[coordinates[i][1]][coordinates[i][0]]
 
-    print(classes)
+    classified_cloud = np.append(points, classes, rgb, axis=1)
+
+    output_file = open('classified_cloud.txt', 'w')
+    print(np.array2string(classified_cloud).replace('\n','').replace(']','\n').replace('[',' ').replace('    ',' ').replace('   ',' ').replace('  ',' '), file = output_file)
+    output_file.close()
+
 
 if __name__ == "__main__":
     main()
