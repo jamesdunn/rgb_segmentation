@@ -3,80 +3,96 @@
 import math
 import numpy as np
 import os
-from scipy import stats
+import pdb
 import sys
+from scipy import stats
+
+# Some hacky print options to get numpy to print the way txt2las wants.
+np.set_printoptions(threshold=sys.maxsize)
+np.set_printoptions(suppress=True)
+np.core.arrayprint._line_width = sys.maxsize
 
 def main():
 
     project_name = sys.argv[1]
     image_width = float(sys.argv[2])
-    scale_factor = float(sys.argv[3])
+    image_height = float(sys.argv[3])
+    scale_factor = float(sys.argv[4])
 
-    points = np.loadtxt('unclassified_cloud.txt', usecols=range(4))
+    scaled_width = math.floor(image_width / scale_factor)
+    scaled_height = math.floor(image_height / scale_factor)
+
+    # Load the LAS txt file into numpy arrays.
+    points = np.loadtxt('unclassified_cloud.txt', usecols=range(3))
+    rgb = np.loadtxt('unclassified_cloud.txt', usecols=range(4,7), dtype=int)
     offset = np.loadtxt('offset.txt', usecols=range(3))
     p_matrices = np.loadtxt('pmatrix.txt', usecols=range(1,13))
     filenames = np.genfromtxt('pmatrix.txt', usecols=range(1), dtype=str)
 
-    x_offset = offset[0] 
-    y_offset = offset[1]
-    z_offset = offset[2]
+    # Calculate the coordinates of projected 2D points, u and v.
+    offset = np.tile(offset, (points.shape[0],1))
+    prime = np.append(np.subtract(points, offset), np.tile(np.array([1]), (points.shape[0],1)), axis=1)
+    
+    # Initialize the array that holds the class values for each point.
+    classes = np.zeros(shape=(points.shape[0],p_matrices.shape[0]))
+    final_class = np.zeros(shape=(points.shape[0]))
 
-    for i in range(points.shape[0]):
-        point = points[i]
-        print('\n')
-        print(i)
-        print('Now processing point:')
-        print(point)
-        pixel_classes = np.array([])
-
-        x = point[0]
-        y = point[1]
-        z = point[2]
-
-        x_prime = x - x_offset
-        y_prime = y - y_offset
-        z_prime = z - z_offset
-
-        prime_matrix = np.matrix([[x_prime], [y_prime], [z_prime], [1]])
-
-        for j in range(p_matrices.shape[0]):
-            filename = filenames[j]
-            try:
-                segmented_image = np.loadtxt(filename + '.txt', usecols=range(math.floor(image_width / scale_factor)))
-            except IOError as e:
-                continue
-            print('Now processing filename:')
-            print(filename)
-            p_matrix = np.matrix(p_matrices[j])
-            print('Now processing pmatrix:')
-            print(p_matrix)
-            p_matrix = np.reshape(p_matrix, (-1, 4))
-            dot_matrix = np.matmul(p_matrix, prime_matrix)
-            dot_matrix = np.reshape(dot_matrix, (-1, 3))
-
-            u = math.floor(dot_matrix.A[0][0] / dot_matrix.A[0][2])
-            v = math.floor(dot_matrix.A[0][1] / dot_matrix.A[0][2])
-
-            if u < 0 or v < 0 or u >= math.floor(image_width / scale_factor) or v >= math.floor(image_width / scale_factor):
-                print ('Point is not found on this image')
-                continue
-            else:
-                print('Point is found on this image.')
-             
-            pixel_class = segmented_image.astype(int)[math.floor(u / scale_factor)][math.floor(v / scale_factor)]
-            pixel_classes = np.append(pixel_classes, pixel_class)
-            print('Pixel classes now look like:')
-            print(pixel_classes)
-
+    # For each segmented image
+    for i in range(p_matrices.shape[0]):    
+        filename = filenames[i]
+        # Try opening the segmented image array.
         try:
-            point[3] = stats.mode(pixel_classes)[0][0]
-        except:
-            print('No classifications for this point.')
+            segmented_image = np.loadtxt(filename + '.txt', dtype=int)
+            print(filename)
+        except IOError as e:
             continue
 
-    classified_cloud = open('classified_cloud.txt', 'w')
-    print(np.array2string(points).replace('\n','').replace(']','\n').replace('[',' ').replace('    ',' ').replace('   ',' ').replace('  ',' '), file = classified_cloud)
-    classified_cloud.close()
+        # For each image, calculate the point-to-pixel projection.
+        p_matrix = p_matrices[i].reshape(3, 4)
+        xyz = np.transpose(np.matmul(p_matrix, np.transpose(prime)))
+        x = np.split(xyz, 3, 1)[0]
+        y = np.split(xyz, 3, 1)[1]
+        z = np.split(xyz, 3, 1)[2]
+        u = np.true_divide(x, z)
+        v = np.true_divide(y, z)
+        coordinates = np.true_divide(np.append(u, v, axis=1), scale_factor).astype(int)
+
+        # Convert classifications from Unified Parsing to LAS format.
+        segmented_image[np.logical_not(np.isin(segmented_image, [4, 97, 14, 37, 119, 5, 335, 70, 9, 1, 22]))] = 0
+        segmented_image[np.isin(segmented_image, [4, 97, 14, 37, 119])] = 4
+        segmented_image[np.isin(segmented_image, [5, 335, 70, 9, 1])] = 6
+        segmented_image[np.isin(segmented_image, [22])] = 2
+
+        # Create an point index column for the coordinates.
+        coordinates = np.append(coordinates, np.arange(points.shape[0]).reshape(-1, 1).astype(int), axis = 1)
+        
+        # Determine which coordinates are valid (i.e., are in the range of the image size).
+        x_mask = np.isin(np.transpose(coordinates)[0], range(0,scaled_width))
+        y_mask = np.isin(np.transpose(coordinates)[1], range(0,scaled_height))
+        coordinates_mask = np.logical_and(x_mask, y_mask)
+        valid_coordinates = coordinates[coordinates_mask]
+
+        # Walk through each point, grap the classification for its corresponding coordinate.
+        for j in range(valid_coordinates.shape[0]):
+            print('Point number ', valid_coordinates[j][2])
+            classes[valid_coordinates[j][2]][i] = segmented_image[valid_coordinates[j][1]][valid_coordinates[j][0]]
+
+    # Take most common classification among pixels corresponding to this point as the point's class.
+    for k in range(classes.shape[0]):
+        if np.count_nonzero(classes[k]) == 0:
+            final_class[k] = 0
+        else:
+            nonzeros = classes[k][classes[k] != 0]
+            final_class[k] = stats.mode(nonzeros)[0][0].astype(int)
+        # TODO: Use Bayesian filter to create confidence value, mapped to intensity in point cloud.
+
+    # Merge everything together.
+    classified_cloud = np.append(np.append(points, final_class.reshape(-1, 1).astype(int), axis=1), rgb.astype(int), axis=1)
+
+    # Write the output file.
+    output_file = open('classified_cloud.txt', 'w')
+    print(np.array2string(classified_cloud).replace('\n','').replace(']','\n').replace('[',' ').replace('    ',' ').replace('   ',' ').replace('  ',' '), file = output_file)
+    output_file.close()
 
 if __name__ == "__main__":
     main()
