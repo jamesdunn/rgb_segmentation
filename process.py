@@ -29,22 +29,25 @@ def main():
     p_matrices = np.loadtxt('pmatrix.txt', usecols=range(1,13))
     filenames = np.genfromtxt('pmatrix.txt', usecols=range(1), dtype=str)
 
-    # Account for the image offset provided by Pix4D. 
+    print('Loaded LAS file.')
+
+    # Account for the image offset provided by Pix4D.
     offset = np.tile(offset, (points.shape[0],1))
     prime = np.append(np.subtract(points, offset), np.tile(np.array([1]), (points.shape[0],1)), axis=1)
-    
+
     # Initialize the array that holds the class values for each point.
     classes = np.zeros(shape=(points.shape[0],p_matrices.shape[0]))
     final_class = np.zeros(shape=(points.shape[0]))
 
     # For each segmented image (given in txt format of 2D array with class labels).
-    for i in range(p_matrices.shape[0]):    
+    for i in range(p_matrices.shape[0]):
         filename = filenames[i]
         # Try opening. Skip if it isn't present.
         try:
-            segmented_image = np.loadtxt(filename + '.txt', dtype=int)
-            print(filename)
+            segmented_image = np.loadtxt('segmented_images/' + filename + '.txt', dtype=int)
+            print(filename + ' found.')
         except IOError as e:
+            print(filename + ' not found.')
             continue
 
         # Calculate the point (x, y, z) to pixel (u, v) projection using Pix4D's pmatrix.
@@ -65,7 +68,7 @@ def main():
 
         # Create an point index column for the coordinates. Since we'll be removing rows, can't use position as index.
         coordinates = np.append(coordinates, np.arange(points.shape[0]).reshape(-1, 1).astype(int), axis = 1)
-        
+
         # Determine which coordinates are valid (are in the range of the image's size).
         x_mask = np.isin(np.transpose(coordinates)[0], range(0,scaled_width))
         y_mask = np.isin(np.transpose(coordinates)[1], range(0,scaled_height))
@@ -79,17 +82,16 @@ def main():
 
     # Take most common classification among pixels corresponding to this point as the point's final classification value.
     for k in range(classes.shape[0]):
-        if np.count_nonzero(classes[k]) == 0:
-            final_class[k] = 0
-        else:
-            nonzeros = classes[k][classes[k] != 0]
-            final_class[k] = stats.mode(nonzeros)[0][0].astype(int)
+        counts = np.bincount(classes[k].astype(int))
+        counts[0] = 0
+        final_class[k] = np.argmax(counts)
         # TODO: Use Bayesian filter to create confidence value, mapped to intensity in point cloud.
+    print('Finished calculating final class for each point.')
 
     # Merge the point coordinates, classes, and RGB values together.
     classified_cloud = np.append(np.append(points, final_class.reshape(-1, 1).astype(int), axis=1), rgb.astype(int), axis=1)
-    
-    # Write the output txt file. Hacky printing to get things in the format that txt2las wants. 
+
+    # Write the output txt file. Hacky printing to get things in the format that txt2las wants.
     output_file = open('classified_cloud.txt', 'w')
     print(np.array2string(classified_cloud).replace('\n','').replace(']','\n').replace('[',' ').replace('    ',' ').replace('   ',' ').replace('  ',' '), file = output_file)
     output_file.close()
