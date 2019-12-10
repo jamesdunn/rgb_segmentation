@@ -14,10 +14,9 @@ np.core.arrayprint._line_width = sys.maxsize
 
 def main():
 
-    project_name = sys.argv[1]
-    image_width = float(sys.argv[2])
-    image_height = float(sys.argv[3])
-    scale_factor = float(sys.argv[4])
+    image_width = float(sys.argv[1])
+    image_height = float(sys.argv[2])
+    scale_factor = float(sys.argv[3])
 
     scaled_width = math.floor(image_width / scale_factor)
     scaled_height = math.floor(image_height / scale_factor)

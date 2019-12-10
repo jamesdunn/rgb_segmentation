@@ -1,0 +1,6 @@
+[submodule "unifiedparsing"]
+	path = unifiedparsing
+	url = git@github.com:jamesdunn/unifiedparsing.git
+[submodule "LAStools"]
+	path = LAStools
+	url = git@github.com:jamesdunn/LAStools.git
