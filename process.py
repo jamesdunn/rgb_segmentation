@@ -88,8 +88,6 @@ def main():
         # TODO: Use Bayesian filter to create confidence value, mapped to intensity in point cloud.
     print('Finished calculating final class for each point.')
 
-    pdb.set_trace()
-
     # Merge the point coordinates, classes, and RGB values together.
     classified_cloud = np.append(np.append(points, final_class.reshape(-1, 1).astype(int), axis=1), rgb.astype(int), axis=1)
 
