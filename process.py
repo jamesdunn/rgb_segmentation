@@ -88,13 +88,13 @@ def main():
         # TODO: Use Bayesian filter to create confidence value, mapped to intensity in point cloud.
     print('Finished calculating final class for each point.')
 
+    pdb.set_trace()
+
     # Merge the point coordinates, classes, and RGB values together.
     classified_cloud = np.append(np.append(points, final_class.reshape(-1, 1).astype(int), axis=1), rgb.astype(int), axis=1)
 
-    # Write the output txt file. Hacky printing to get things in the format that txt2las wants.
-    output_file = open('classified_cloud.txt', 'w')
-    print(np.array2string(classified_cloud).replace('\n','').replace(']','\n').replace('[',' ').replace('    ',' ').replace('   ',' ').replace('  ',' '), file = output_file)
-    output_file.close()
+    # Write the output txt file for txt2las.
+    np.savetxt('classified_cloud.txt', classified_cloud, fmt="%f", delimiter=" ")
 
 if __name__ == "__main__":
     main()
