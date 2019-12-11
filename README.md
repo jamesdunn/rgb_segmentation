@@ -1,8 +1,10 @@
-# 290t_project
+# EE290T Final Project
 
 About
 =====
 This repository contains scripts that perform end-to-end segmentation on a point cloud that was computed with from source images with Pix4D. Segmentation is performed on the source images, and a transformation matrix provided by Pix4D us used to project the segmented pixels to points.
+
+These scripts were written as part of a UC Berkeley EE290T final project by James Dunn and Sam Fernandes.
 
 Getting Started
 ===============
