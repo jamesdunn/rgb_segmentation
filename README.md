@@ -41,4 +41,4 @@ The argument to `run.sh` is the width that input images should be downscaled to 
 
 Questions?
 ==========
-Contact James here on GitHub.
+Contact [my github username] at berkeley.edu.
