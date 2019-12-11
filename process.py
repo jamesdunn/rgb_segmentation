@@ -43,7 +43,7 @@ def main():
         filename = filenames[i]
         # Try opening. Skip if it isn't present.
         try:
-            segmented_image = np.loadtxt('segmented_images/' + filename + '.txt', dtype=int)
+            segmented_image = np.loadtxt('unifiedparsing/segmented_images/' + filename + '.txt', dtype=int)
             print(filename + ' found.')
         except IOError as e:
             print(filename + ' not found.')
