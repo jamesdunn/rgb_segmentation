@@ -6,6 +6,9 @@ import os
 import pdb
 import sys
 from scipy import stats
+from glob import glob
+
+from occlusion_detection import get_occlusion_mask, get_occlusion_mask2
 
 # Some hacky print options to get numpy to print in the format that txt2las wants.
 np.set_printoptions(threshold=sys.maxsize)
@@ -32,14 +35,16 @@ def main():
 
     # Account for the image offset provided by Pix4D.
     offset = np.tile(offset, (points.shape[0],1))
-    prime = np.append(np.subtract(points, offset), np.tile(np.array([1]), (points.shape[0],1)), axis=1)
+    prime = np.hstack((points - offset, np.ones((points.shape[0], 1))))
 
     # Initialize the array that holds the class values for each point.
     classes = np.zeros(shape=(points.shape[0],p_matrices.shape[0]))
     final_class = np.zeros(shape=(points.shape[0]))
 
     # For each segmented image (given in txt format of 2D array with class labels).
-    for i in range(p_matrices.shape[0]):
+
+    ITR_STEP = 5
+    for i in range(0, p_matrices.shape[0], ITR_STEP):
         filename = filenames[i]
         # Try opening. Skip if it isn't present.
         try:
@@ -51,6 +56,12 @@ def main():
 
         # Calculate the point (x, y, z) to pixel (u, v) projection using Pix4D's pmatrix.
         p_matrix = p_matrices[i].reshape(3, 4)
+
+        print("Obtaining Occlusion Mask...")
+        occlusion_mask = get_occlusion_mask(prime, p_matrix, image_width, image_height)
+        unoccluded_points = prime[occlusion_mask != 0]
+        print("Total number of unoccluded points: %d" % unoccluded_points.shape[0])
+
         xyz = np.transpose(np.matmul(p_matrix, np.transpose(prime)))
         x = np.split(xyz, 3, 1)[0]
         y = np.split(xyz, 3, 1)[1]
@@ -65,19 +76,15 @@ def main():
         segmented_image[np.isin(segmented_image, [5, 335, 70, 9, 1])] = 6
         segmented_image[np.isin(segmented_image, [22])] = 2
 
-        # Create an point index column for the coordinates. Since we'll be removing rows, can't use position as index.
-        coordinates = np.append(coordinates, np.arange(points.shape[0]).reshape(-1, 1).astype(int), axis = 1)
-
-        # Determine which coordinates are valid (are in the range of the image's size).
-        x_mask = np.isin(np.transpose(coordinates)[0], range(0,scaled_width))
-        y_mask = np.isin(np.transpose(coordinates)[1], range(0,scaled_height))
-        coordinates_mask = np.logical_and(x_mask, y_mask)
+        #Note: Computed valid coordinates (i.e. in camera frame) as part of the occlusion mask
+        coordinates_mask = np.nonzero(occlusion_mask)
         valid_coordinates = coordinates[coordinates_mask]
 
         # Walk through each point, grab the classification for its corresponding 2D image coordinate.
         for j in range(valid_coordinates.shape[0]):
-            print('Point number ', valid_coordinates[j][2])
-            classes[valid_coordinates[j][2]][i] = segmented_image[valid_coordinates[j][1]][valid_coordinates[j][0]]
+            #Index the coordinate mask to determine which elements in the class array to update
+            index = coordinates_mask[0][j]
+            classes[index][i] = segmented_image[valid_coordinates[j][1]][valid_coordinates[j][0]]
 
     # Take most common classification among pixels corresponding to this point as the point's final classification value.
     for k in range(classes.shape[0]):
