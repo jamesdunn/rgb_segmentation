@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 echo 'Running las2txt.'
 
-#./LAStools/bin/las2txt -i $(ls ./*.las | sort -n | head -1) -o unclassified_cloud.txt -parse xyzcRGB
+./LAStools/bin/las2txt -i $(ls ./*.las | sort -n | head -1) -o unclassified_cloud.txt -parse xyzcRGB
 
 SCALE_WIDTH=$1
 

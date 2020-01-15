@@ -8,7 +8,7 @@ import sys
 from scipy import stats
 from glob import glob
 
-from occlusion_detection import get_occlusion_mask, get_occlusion_mask2
+from occlusion_detection import get_occlusion_mask
 
 # Some hacky print options to get numpy to print in the format that txt2las wants.
 np.set_printoptions(threshold=sys.maxsize)
