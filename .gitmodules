@@ -4,3 +4,6 @@
 [submodule "LAStools"]
 	path = LAStools
 	url = git@github.com:jamesdunn/LAStools.git
+[submodule "Open3D-PointNet2-Semantic3D"]
+	path = Open3D-PointNet2-Semantic3D
+	url = git@github.com:jamesdunn/Open3D-PointNet2-Semantic3D.git
